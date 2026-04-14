@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>d.lock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400;500&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ink: #0e0e0e; --paper: #f5f3ee; --mid: #9a9690;
+    --rule: #d8d5cf; --mono: 'Geist Mono', monospace; --serif: 'DM Serif Display', serif;
+  }
+  html { font-size: 16px; scroll-behavior: smooth; }
+  body { background: var(--paper); color: var(--ink); font-family: var(--mono); min-height: 100vh; overflow-x: hidden; transition: background-color 0.5s ease, color 0.5s ease; }
+
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 24px 48px; background: var(--paper); border-bottom: 1px solid var(--rule); transition: background-color 0.5s ease, border-color 0.5s ease;
+  }
+  .nav-logo { font-family: var(--mono); font-size: 15px; font-weight: 500; letter-spacing: -0.02em; color: var(--ink); text-decoration: none; transition: color 0.5s ease; }
+  .nav-links { display: flex; gap: 36px; list-style: none; }
+  .nav-links a { font-size: 12px; font-weight: 300; letter-spacing: 0.08em; text-transform: uppercase; color: var(--mid); text-decoration: none; transition: color 0.5s ease; }
+  .nav-links a:hover { color: var(--ink); }
+
+  /* HERO: full-viewport canvas with text overlay */
+  .hero {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    min-height: 600px;
+    overflow: hidden;
+  }
+  .clock-wrap {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .clock-wrap canvas { display: block; }
+  .hero-overlay {
+    position: absolute;
+    inset: 0;
+    top: 72px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 0 56px 56px;
+    pointer-events: none;
+  }
+  .hero-overlay > * { pointer-events: auto; }
+  .hero-eyebrow { font-size: 11px; font-weight: 300; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mid); margin-bottom: 16px; }
+  .hero-title { font-family: var(--serif); font-size: clamp(52px, 7vw, 96px); line-height: 0.92; letter-spacing: -0.02em; margin-bottom: 24px; }
+  .hero-title em { font-style: italic; color: var(--mid); }
+  .hero-desc { font-size: 13px; font-weight: 300; line-height: 1.8; color: var(--mid); max-width: 440px; margin-bottom: 36px; }
+  .hero-desc strong { color: var(--ink); font-weight: 400; }
+  .hero-cta { display: inline-flex; align-items: center; gap: 12px; font-family: var(--mono); font-size: 12px; font-weight: 400; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--ink); padding-bottom: 4px; width: fit-content; transition: gap 0.3s, color 0.5s ease, border-color 0.5s ease; }
+  .hero-cta:hover { gap: 20px; }
+  .hero-cta::after { content: '→'; }
+  .clock-label { position: absolute; bottom: 20px; right: 24px; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mid); }
+
+  .divider { border: none; border-top: 1px solid var(--rule); }
+
+  .how { padding: 120px 48px; display: grid; grid-template-columns: 1fr 2fr; gap: 80px; border-bottom: 1px solid var(--rule); }
+  .section-label { font-size: 11px; font-weight: 300; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mid); padding-top: 6px; }
+  .how-items { display: grid; grid-template-columns: 1fr 1fr; gap: 48px 64px; }
+  .how-item-num { font-size: 11px; color: var(--mid); margin-bottom: 12px; }
+  .how-item-title { font-family: var(--serif); font-size: 22px; line-height: 1.1; margin-bottom: 12px; }
+  .how-item-body { font-size: 12px; font-weight: 300; line-height: 1.8; color: var(--mid); }
+
+  .specs { padding: 120px 48px; display: grid; grid-template-columns: 1fr 2fr; gap: 80px; border-bottom: 1px solid var(--rule); }
+  .specs-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+  .spec-cell { background: var(--paper); padding: 32px 28px; transition: background-color 0.5s ease; }
+  .spec-val { font-family: var(--serif); font-size: 42px; line-height: 1; margin-bottom: 8px; }
+  .spec-key { font-size: 11px; font-weight: 300; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mid); }
+
+  footer { padding: 40px 48px; display: flex; justify-content: space-between; align-items: center; }
+  .footer-logo { font-size: 13px; font-weight: 500; letter-spacing: -0.02em; }
+  .footer-note { font-size: 11px; font-weight: 300; color: var(--mid); letter-spacing: 0.04em; }
+
+  .fade-up { opacity: 0; transform: translateY(24px); transition: opacity 0.7s ease, transform 0.7s ease; }
+  .fade-up.visible { opacity: 1; transform: none; }
+
+  @media (max-width: 900px) {
+    nav { padding: 20px 24px; }
+    .nav-links { display: none; }
+    .hero { height: 100svh; min-height: 500px; }
+    .hero-overlay { padding: 0 24px 40px; }
+    .how, .specs { grid-template-columns: 1fr; padding: 80px 24px; gap: 40px; }
+    .how-items { grid-template-columns: 1fr; }
+    .specs-grid { grid-template-columns: 1fr 1fr; }
+    footer { padding: 32px 24px; flex-direction: column; gap: 12px; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="#">d.lock</a>
+  <ul class="nav-links">
+    <li><a href="#how">How it works</a></li>
+    <li><a href="#specs">Specs</a></li>
+  </ul>
+</nav>
+
+<section class="hero">
+  <div class="clock-wrap">
+    <canvas id="heroCanvas"></canvas>
+  </div>
+  <div class="hero-overlay">
+    <p class="hero-eyebrow">A clock reimagined</p>
+    <h1 class="hero-title">d<em>.</em>lock</h1>
+    <p class="hero-desc">
+      d.lock is an experimental clock based on the mobile game "ff." Inspired by its circular forms, this design uses three circles to represent hours, minutes, and seconds.<br><br>
+      Three spinning rings. Twelve sticks each.<br>
+      <strong>Every hour, every five minutes, every five seconds</strong> — a ball lands on the nearest stick and stays.<br><br>
+      Time accumulates. Then resets. Then accumulates again.
+    </p>
+    <a class="hero-cta" href="#how">See how it works</a>
+  </div>
+  <span class="clock-label">live — local time</span>
+</section>
+
+<section class="how" id="how">
+  <p class="section-label">How<br>it works</p>
+  <div class="how-items">
+    <div class="how-item fade-up">
+      <p class="how-item-num">01</p>
+      <h3 class="how-item-title">Three rings</h3>
+      <p class="how-item-body">A large ring tracks the hours. A medium ring tracks every five minutes. A small ring centered below tracks every five seconds.</p>
+    </div>
+    <div class="how-item fade-up" style="transition-delay:0.1s">
+      <p class="how-item-num">02</p>
+      <h3 class="how-item-title">Twelve sticks</h3>
+      <p class="how-item-body">Each ring carries twelve evenly spaced sticks extending outward from the filled disc — one per unit of measured time.</p>
+    </div>
+    <div class="how-item fade-up" style="transition-delay:0.2s">
+      <p class="how-item-num">03</p>
+      <h3 class="how-item-title">Balls land</h3>
+      <p class="how-item-body">When time advances, a ball attaches to the stick pointing inward toward the gap. Balls stack and accumulate along each stick.</p>
+    </div>
+    <div class="how-item fade-up" style="transition-delay:0.3s">
+      <p class="how-item-num">04</p>
+      <h3 class="how-item-title">Then reset</h3>
+      <p class="how-item-body">The seconds ring clears every minute. Minutes clear every hour. Hours clear every twelve. Each cycle begins again from zero.</p>
+    </div>
+    <div class="how-item fade-up" style="transition-delay:0.4s">
+      <p class="how-item-num">05</p>
+      <h3 class="how-item-title">AM / PM inversion</h3>
+      <p class="how-item-body">The full interface follows the viewer's local time: AM appears as a light field with dark marks, while PM inverts to a dark field with light marks.</p>
+    </div>
+  </div>
+</section>
+
+<section class="specs" id="specs">
+  <p class="section-label">Specs</p>
+  <div class="specs-grid">
+    <div class="spec-cell fade-up">
+      <div class="spec-val">3</div>
+      <div class="spec-key">Rings</div>
+    </div>
+    <div class="spec-cell fade-up" style="transition-delay:0.1s">
+      <div class="spec-val">12</div>
+      <div class="spec-key">Sticks per ring</div>
+    </div>
+    <div class="spec-cell fade-up" style="transition-delay:0.2s">
+      <div class="spec-val">5s</div>
+      <div class="spec-key">Second resolution</div>
+    </div>
+    <div class="spec-cell fade-up" style="transition-delay:0.3s">
+      <div class="spec-val">1m</div>
+      <div class="spec-key">Second reset cycle</div>
+    </div>
+    <div class="spec-cell fade-up" style="transition-delay:0.4s">
+      <div class="spec-val">1h</div>
+      <div class="spec-key">Minute reset cycle</div>
+    </div>
+    <div class="spec-cell fade-up" style="transition-delay:0.5s">
+      <div class="spec-val">12h</div>
+      <div class="spec-key">Hour reset cycle</div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<footer>
+  <span class="footer-logo">d.lock</span>
+  <span class="footer-note">Time, accumulated.</span>
+</footer>
+
+<script>
+const canvas = document.getElementById('heroCanvas');
+const ctx = canvas.getContext('2d');
+const root = document.documentElement;
+let INK = '#0e0e0e';
+let lastThemePeriod = '';
+
+// Base design at 800×820 with generous padding so nothing clips
+// PAD = stick_len + dot_r + a little breathing room
+// Hour ring:   cx=220, cy=240, r=150, so left edge = 220-150-46 = 24 ✓ right edge = 220+150+46 = 416
+// Minute ring: cx=580, cy=240, r=88,  so right edge = 580+88+46 = 714, left = 580-88-46 = 446
+// Second ring: cx=400, cy=620, r=64,  so bottom = 620+64+46 = 730 < 820 ✓, left = 400-64-46=290, right=400+64+46=510
+const BASE_W = 800, BASE_H = 820;
+const BASE_PAD = 46; // stick_len(40) + dot_r(6) - gives ~0px breathing room, add a bit more
+const BASE = {
+  H_CX: 260, H_CY: 270, H_R: 148,
+  M_CX: 620, M_CY: 270, M_R: 94,
+  S_CX: 440, S_CY: 582, S_R: 62,
+  STICK_LEN: 38,
+  DOT_R_H: 8, DOT_R_M: 5.5, DOT_R_S: 4.5,
+  OFFSET_X: 52,
+  OFFSET_Y: 56,
+  GLOBAL_SCALE: 1.08
+};
+
+let W, H, scale;
+let H_CX, H_CY, H_R, M_CX, M_CY, M_R, S_CX, S_CY, S_R;
+let STICK_LEN, STICK_W, DOT_R_H, DOT_R_M, DOT_R_S, SHOOTER_X, SHOOTER_Y;
+let H_ANCHOR = 0, M_ANCHOR = 0, S_ANCHOR = 0;
+
+function resizeCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  // Fill the full viewport
+  const displayW = window.innerWidth;
+  const displayH = window.innerHeight;
+
+  canvas.style.width  = displayW + 'px';
+  canvas.style.height = displayH + 'px';
+  canvas.width  = Math.round(displayW * dpr);
+  canvas.height = Math.round(displayH * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  W = displayW; H = displayH;
+
+  // Scale based on the smaller dimension so rings always fit
+  const aspect = BASE_W / BASE_H;
+  let scale;
+  if (displayW / displayH > aspect) {
+    // Window is wider than design — scale by height
+    scale = displayH / BASE_H;
+  } else {
+    // Window is taller than design — scale by width
+    scale = displayW / BASE_W;
+  }
+  scale *= BASE.GLOBAL_SCALE;
+
+  // Centre the layout in the viewport
+  const offsetX = (displayW - BASE_W * scale) / 2 + BASE.OFFSET_X * scale;
+  const offsetY = (displayH - BASE_H * scale) / 2 + BASE.OFFSET_Y * scale;
+
+  H_CX = BASE.H_CX * scale + offsetX; H_CY = BASE.H_CY * scale + offsetY; H_R = BASE.H_R * scale;
+  M_CX = BASE.M_CX * scale + offsetX; M_CY = BASE.M_CY * scale + offsetY; M_R = BASE.M_R * scale;
+  S_CX = BASE.S_CX * scale + offsetX; S_CY = BASE.S_CY * scale + offsetY; S_R = BASE.S_R * scale;
+  STICK_LEN = BASE.STICK_LEN * scale;
+  STICK_W   = Math.max(0.6, 1.0 * scale);
+  DOT_R_H   = BASE.DOT_R_H * scale;
+  DOT_R_M   = BASE.DOT_R_M * scale;
+  DOT_R_S   = BASE.DOT_R_S * scale;
+  SHOOTER_X = (H_CX + M_CX + S_CX) / 3;
+  SHOOTER_Y = (H_CY + M_CY + S_CY) / 3;
+  H_ANCHOR = closestStick(0, 12, inwardAngle(H_CX, H_CY));
+  M_ANCHOR = closestStick(0, 12, inwardAngle(M_CX, M_CY));
+  S_ANCHOR = closestStick(0, 12, inwardAngle(S_CX, S_CY));
+}
+
+// The "inward" angle: direction from ring center toward the shooter
+function inwardAngle(cx, cy) {
+  return Math.atan2(SHOOTER_Y - cy, SHOOTER_X - cx);
+}
+
+window.addEventListener('resize', () => { resizeCanvas(); });
+resizeCanvas();
+
+let hourDots = Array.from({length:12}, ()=>[]);
+let minDots  = Array.from({length:12}, ()=>[]);
+let secDots  = Array.from({length:12}, ()=>[]);
+let flyingBalls = [];
+let lastHour = -1, lastMin5 = -1, lastSec5 = -1;
+let lastHourCycle = -1, lastMinuteCycle = -1;
+let hasSyncedInitialState = false;
+
+function easeOut(t) { return 1-(1-t)**3; }
+
+function stickAngle(rot, i, total) {
+  return rot + (i/total)*Math.PI*2 - Math.PI/2;
+}
+
+function closestStick(rot, total, targetAngle) {
+  let best = 0, bestDiff = Infinity;
+  for (let i = 0; i < total; i++) {
+    const a = stickAngle(rot, i, total);
+    let diff = Math.abs(((a - targetAngle) + Math.PI*3) % (Math.PI*2) - Math.PI);
+    if (diff < bestDiff) { bestDiff = diff; best = i; }
+  }
+  return best;
+}
+
+function sequentialStickIndex(ring, completedCount) {
+  const anchors = { h: H_ANCHOR, m: M_ANCHOR, s: S_ANCHOR };
+  const anchor = anchors[ring];
+  return (anchor - completedCount + 12 * 10) % 12;
+}
+
+function shootBall(ring, stickIndex, rot) {
+  const cfgs = {
+    h: { cx:H_CX, cy:H_CY, r:H_R, dr:DOT_R_H, dots:hourDots },
+    m: { cx:M_CX, cy:M_CY, r:M_R, dr:DOT_R_M, dots:minDots  },
+    s: { cx:S_CX, cy:S_CY, r:S_R, dr:DOT_R_S, dots:secDots  },
+  };
+  const c = cfgs[ring];
+  if (c.dots[stickIndex].length > 0) return;
+  const a = stickAngle(rot, stickIndex, 12);
+  const tipX = c.cx + Math.cos(a)*(c.r+STICK_LEN);
+  const tipY = c.cy + Math.sin(a)*(c.r+STICK_LEN);
+  flyingBalls.push({
+    sx: SHOOTER_X, sy: SHOOTER_Y, x: SHOOTER_X, y: SHOOTER_Y,
+    tx: tipX, ty: tipY,
+    progress: 0, r: c.dr, ring, stickIndex
+  });
+}
+
+function addDotImmediately(ring, stickIndex) {
+  const dotsByRing = {
+    h: hourDots,
+    m: minDots,
+    s: secDots
+  };
+  const dots = dotsByRing[ring];
+  if (!dots[stickIndex].length) dots[stickIndex].push(1);
+}
+
+function drawRing(cx, cy, r, sticks, rot) {
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fillStyle=INK; ctx.fill();
+  for (let i=0; i<sticks; i++) {
+    const a = stickAngle(rot, i, sticks);
+    ctx.beginPath();
+    ctx.moveTo(cx+Math.cos(a)*(r+2), cy+Math.sin(a)*(r+2));
+    ctx.lineTo(cx+Math.cos(a)*(r+STICK_LEN), cy+Math.sin(a)*(r+STICK_LEN));
+    ctx.strokeStyle=INK; ctx.lineWidth=STICK_W; ctx.lineCap='round'; ctx.stroke();
+  }
+}
+
+function drawDots(cx, cy, r, rot, dots, dr, total) {
+  for (let i=0; i<total; i++) {
+    if (!dots[i]||!dots[i].length) continue;
+    const a = stickAngle(rot, i, total);
+    const tx=cx+Math.cos(a)*(r+STICK_LEN), ty=cy+Math.sin(a)*(r+STICK_LEN);
+    ctx.beginPath(); ctx.arc(tx, ty, dr, 0, Math.PI*2);
+    ctx.fillStyle=INK; ctx.fill();
+  }
+}
+
+const localTimeFormatter = new Intl.DateTimeFormat('en-GB', {
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23'
+});
+
+function getLocalTimeParts() {
+  const parts = localTimeFormatter.formatToParts(new Date());
+  const values = {};
+  for (const part of parts) {
+    if (part.type !== 'literal') values[part.type] = part.value;
+  }
+  return {
+    hrs: Number(values.hour) % 12,
+    fullHours: Number(values.hour),
+    mins: Number(values.minute),
+    secs: Number(values.second),
+    ms: Date.now() % 1000
+  };
+}
+
+function applyTheme(fullHours) {
+  const period = fullHours < 12 ? 'am' : 'pm';
+  if (period === lastThemePeriod) return;
+
+  const palette = period === 'am'
+    ? { ink: '#0e0e0e', paper: '#f5f3ee', mid: '#9a9690', rule: '#d8d5cf' }
+    : { ink: '#f5f3ee', paper: '#0e0e0e', mid: '#b7b2aa', rule: '#3a3632' };
+
+  root.style.setProperty('--ink', palette.ink);
+  root.style.setProperty('--paper', palette.paper);
+  root.style.setProperty('--mid', palette.mid);
+  root.style.setProperty('--rule', palette.rule);
+  INK = palette.ink;
+  lastThemePeriod = period;
+}
+
+function syncClockState(now) {
+  hourDots = Array.from({length:12}, ()=>[]);
+  minDots  = Array.from({length:12}, ()=>[]);
+  secDots  = Array.from({length:12}, ()=>[]);
+  flyingBalls = [];
+
+  for (let hour = 0; hour < now.hrs; hour++) {
+    addDotImmediately('h', sequentialStickIndex('h', hour + 1));
+  }
+
+  for (let bucket = 0; bucket < Math.floor(now.mins / 5); bucket++) {
+    addDotImmediately('m', sequentialStickIndex('m', bucket + 1));
+  }
+
+  for (let bucket = 0; bucket < Math.floor(now.secs / 5); bucket++) {
+    addDotImmediately('s', sequentialStickIndex('s', bucket + 1));
+  }
+
+  lastHour = now.hrs;
+  lastMin5 = Math.floor(now.mins / 5);
+  lastSec5 = Math.floor(now.secs / 5);
+  lastHourCycle = Math.floor(now.fullHours / 12);
+  lastMinuteCycle = now.mins;
+  hasSyncedInitialState = true;
+}
+
+function loop() {
+  requestAnimationFrame(loop);
+  const now  = getLocalTimeParts();
+  applyTheme(now.fullHours);
+  const hrs  = now.hrs;
+  const mins = now.mins;
+  const secs = now.secs;
+  const ms   = now.ms;
+  const min5 = Math.floor(mins/5);
+  const sec5 = Math.floor(secs/5);
+  const hourCycle   = Math.floor(now.fullHours/12);
+  const minuteCycle = mins;
+
+  const hourRot = ((hrs*3600+mins*60+secs+ms/1000)/43200)*Math.PI*2;
+  const minRot  = ((mins*60+secs+ms/1000)/3600)*Math.PI*2;
+  const secRot  = ((secs+ms/1000)/60)*Math.PI*2;
+
+  if (!hasSyncedInitialState) {
+    syncClockState(now);
+  }
+
+  // Hour ring: reset every 12h cycle
+  if (lastHourCycle !== hourCycle) {
+    if (lastHourCycle !== -1) { hourDots=Array.from({length:12},()=>[]); flyingBalls=flyingBalls.filter(b=>b.ring!=='h'); }
+    lastHourCycle = hourCycle;
+  }
+
+  // Minute ring: reset every new hour; fire hour ball
+  if (lastHour !== hrs) {
+    if (lastHour !== -1) { minDots=Array.from({length:12},()=>[]); flyingBalls=flyingBalls.filter(b=>b.ring!=='m'); }
+    if (hrs > 0) shootBall('h', sequentialStickIndex('h', hrs), hourRot);
+    lastHour = hrs; lastMin5 = -1;
+  }
+
+  // Seconds ring: reset every new minute
+  if (lastMinuteCycle !== mins) {
+    if (lastMinuteCycle !== -1) { secDots=Array.from({length:12},()=>[]); flyingBalls=flyingBalls.filter(b=>b.ring!=='s'); }
+    lastMinuteCycle = mins; lastSec5 = -1;
+  }
+
+  if (lastMin5 !== min5) {
+    if (min5 > 0) shootBall('m', sequentialStickIndex('m', min5), minRot);
+    lastMin5 = min5;
+  }
+
+  if (lastSec5 !== sec5) {
+    if (sec5 > 0) shootBall('s', sequentialStickIndex('s', sec5), secRot);
+    lastSec5 = sec5;
+  }
+
+  // Animate
+  for (let i=flyingBalls.length-1; i>=0; i--) {
+    const b=flyingBalls[i];
+    b.progress+=0.016*4; if(b.progress>=1) b.progress=1;
+    const t=easeOut(b.progress);
+    b.x=b.sx+(b.tx-b.sx)*t; b.y=b.sy+(b.ty-b.sy)*t;
+    if (b.progress>=1) {
+      if (b.ring==='h') hourDots[b.stickIndex].push(1);
+      else if (b.ring==='m') minDots[b.stickIndex].push(1);
+      else secDots[b.stickIndex].push(1);
+      flyingBalls.splice(i,1);
+    }
+  }
+
+  ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,canvas.width,canvas.height); ctx.restore();
+  drawRing(H_CX, H_CY, H_R, 12, hourRot);
+  drawRing(M_CX, M_CY, M_R, 12, minRot);
+  drawRing(S_CX, S_CY, S_R, 12, secRot);
+  drawDots(H_CX, H_CY, H_R, hourRot, hourDots, DOT_R_H, 12);
+  drawDots(M_CX, M_CY, M_R, minRot,  minDots,  DOT_R_M, 12);
+  drawDots(S_CX, S_CY, S_R, secRot,  secDots,  DOT_R_S, 12);
+  for (const b of flyingBalls) {
+    ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.fillStyle=INK; ctx.fill();
+  }
+}
+
+requestAnimationFrame(loop);
+
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.15 });
+document.querySelectorAll('.fade-up').forEach(el => obs.observe(el));
+</script>
+</body>
+</html>
