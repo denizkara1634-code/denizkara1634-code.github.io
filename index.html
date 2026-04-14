@@ -50,6 +50,7 @@
     justify-content: flex-end;
     padding: 0 56px 56px;
     pointer-events: none;
+    z-index: 2;
   }
   .hero-overlay > * { pointer-events: auto; }
   .hero-eyebrow { font-size: 11px; font-weight: 300; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mid); margin-bottom: 16px; }
@@ -87,12 +88,46 @@
   @media (max-width: 900px) {
     nav { padding: 20px 24px; }
     .nav-links { display: none; }
-    .hero { height: 100svh; min-height: 500px; }
-    .hero-overlay { padding: 0 24px 40px; }
+    .hero {
+      height: auto;
+      min-height: 980px;
+      padding-top: 84px;
+    }
+    .clock-wrap {
+      inset: 84px 0 auto;
+      height: min(58vh, 520px);
+    }
+    .hero-overlay {
+      inset: auto 0 0;
+      top: auto;
+      justify-content: flex-start;
+      padding: 0 24px 40px;
+    }
+    .hero-title { font-size: clamp(48px, 14vw, 82px); margin-bottom: 18px; }
+    .hero-desc { max-width: none; font-size: 12px; line-height: 1.7; margin-bottom: 28px; }
+    .clock-label { right: 20px; bottom: 16px; }
     .how, .specs { grid-template-columns: 1fr; padding: 80px 24px; gap: 40px; }
     .how-items { grid-template-columns: 1fr; }
     .specs-grid { grid-template-columns: 1fr 1fr; }
     footer { padding: 32px 24px; flex-direction: column; gap: 12px; text-align: center; }
+  }
+
+  @media (max-width: 640px) {
+    .hero {
+      min-height: 1040px;
+      padding-top: 76px;
+    }
+    .clock-wrap {
+      inset: 76px 0 auto;
+      height: min(52vh, 420px);
+    }
+    .hero-overlay {
+      padding: 0 20px 32px;
+    }
+    .hero-eyebrow { margin-bottom: 12px; }
+    .hero-title { font-size: clamp(42px, 16vw, 70px); }
+    .hero-desc { font-size: 11px; line-height: 1.65; }
+    .hero-cta { font-size: 11px; }
   }
 </style>
 </head>
@@ -194,6 +229,7 @@
 
 <script>
 const canvas = document.getElementById('heroCanvas');
+const clockWrap = document.querySelector('.clock-wrap');
 const ctx = canvas.getContext('2d');
 const root = document.documentElement;
 let INK = '#0e0e0e';
@@ -224,9 +260,12 @@ let H_ANCHOR = 0, M_ANCHOR = 0, S_ANCHOR = 0;
 
 function resizeCanvas() {
   const dpr = window.devicePixelRatio || 1;
-  // Fill the full viewport
-  const displayW = window.innerWidth;
-  const displayH = window.innerHeight;
+  const wrapRect = clockWrap.getBoundingClientRect();
+  const viewportW = window.innerWidth;
+  const isTablet = viewportW <= 900;
+  const isPhone = viewportW <= 640;
+  const displayW = Math.max(1, Math.round(wrapRect.width));
+  const displayH = Math.max(1, Math.round(wrapRect.height));
 
   canvas.style.width  = displayW + 'px';
   canvas.style.height = displayH + 'px';
@@ -246,11 +285,12 @@ function resizeCanvas() {
     // Window is taller than design — scale by width
     scale = displayW / BASE_W;
   }
-  scale *= BASE.GLOBAL_SCALE;
+  const responsiveScale = isPhone ? 0.74 : isTablet ? 0.86 : BASE.GLOBAL_SCALE;
+  scale *= responsiveScale;
 
   // Centre the layout in the viewport
-  const offsetX = (displayW - BASE_W * scale) / 2 + BASE.OFFSET_X * scale;
-  const offsetY = (displayH - BASE_H * scale) / 2 + BASE.OFFSET_Y * scale;
+  const offsetX = (displayW - BASE_W * scale) / 2 + (isPhone ? 18 : isTablet ? 26 : BASE.OFFSET_X) * scale;
+  const offsetY = (displayH - BASE_H * scale) / 2 + (isPhone ? 8 : isTablet ? 20 : BASE.OFFSET_Y) * scale;
 
   H_CX = BASE.H_CX * scale + offsetX; H_CY = BASE.H_CY * scale + offsetY; H_R = BASE.H_R * scale;
   M_CX = BASE.M_CX * scale + offsetX; M_CY = BASE.M_CY * scale + offsetY; M_R = BASE.M_R * scale;
